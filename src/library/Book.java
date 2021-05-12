@@ -1,15 +1,30 @@
 package library;
 
+import java.text.ParseException;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
-import library.database.DatabaseSingleton;
+import library.interfaces.Deletable;
 import library.interfaces.Saveable;
+import library.interfaces.Serializable;
 
-public class Book extends Readable implements Saveable {
+public class Book extends Readable implements Saveable, Deletable, Serializable {
     private Optional<Author> author;
     private Optional<String> releaseYear;
     private Optional<Publisher> publisher;
+
+    protected Book(String[] data) throws ParseException, IndexOutOfBoundsException, NoSuchElementException {
+        super(UUID.fromString(data[0]), Util.parseDate(data[1]), data[2],
+                Section.findByID(UUID.fromString(data[3])).orElseThrow(), data[4], data[5]);
+        this.author = Author.findByID(UUID.fromString(data[6]));
+        this.releaseYear = data[7].isEmpty() ? Optional.empty() : Optional.of(data[7]);
+        this.publisher = Publisher.findByID(UUID.fromString(data[8]));
+
+        this.author.ifPresent(a -> a.addBook(this));
+        this.publisher.ifPresent(p -> p.addBook(this));
+        this.getSection().addReadable(this);
+    }
 
     public Book(String title, Section section, String ISBN, String language, Author author, String releaseYear,
             Publisher publisher) {
@@ -68,7 +83,22 @@ public class Book extends Readable implements Saveable {
     }
 
     @Override
-    public boolean save() throws RuntimeException {
+    public boolean save() {
         return DatabaseSingleton.getInstance().saveBook(this);
+    }
+
+    @Override
+    public boolean delete() {
+        return DatabaseSingleton.getInstance().deleteBook(this);
+    }
+
+    @Override
+    public String serialize() {
+        String[] fields = { getID().toString(), getCreationDate().toString(), getTitle(),
+                getSection().getID().toString(), getISBN(), getLanguage(),
+                author.isPresent() ? author.get().getID().toString() : "",
+                releaseYear.isPresent() ? releaseYear.get() : "",
+                publisher.isPresent() ? publisher.get().getID().toString() : "" };
+        return String.join(",", fields);
     }
 }

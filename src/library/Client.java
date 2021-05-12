@@ -1,18 +1,28 @@
 package library;
 
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import library.database.DatabaseSingleton;
+import library.interfaces.Deletable;
 import library.interfaces.Saveable;
+import library.interfaces.Serializable;
 
-public class Client extends Entity implements Saveable {
+public class Client extends Entity implements Saveable, Deletable, Serializable {
     private String firstName;
     private String lastName;
     private String CNP;
     private List<Rental> rentals;
+
+    protected Client(String[] data) throws ParseException, IndexOutOfBoundsException {
+        super(UUID.fromString(data[0]), Util.parseDate(data[1]));
+        this.firstName = data[2];
+        this.lastName = data[3];
+        this.CNP = data[4];
+        this.rentals = new ArrayList<>();
+    }
 
     public Client(String firstName, String lastName, String CNP) {
         this.firstName = firstName;
@@ -78,7 +88,18 @@ public class Client extends Entity implements Saveable {
     }
 
     @Override
-    public boolean save() throws RuntimeException {
+    public boolean save() {
         return DatabaseSingleton.getInstance().saveClient(this);
+    }
+
+    @Override
+    public boolean delete() {
+        return DatabaseSingleton.getInstance().deleteClient(this);
+    }
+
+    @Override
+    public String serialize() {
+        String[] fields = { getID().toString(), getCreationDate().toString(), firstName, lastName, CNP };
+        return String.join(",", fields);
     }
 }

@@ -1,5 +1,6 @@
 package library;
 
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -8,16 +9,29 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 
-import library.database.DatabaseSingleton;
+import library.interfaces.Deletable;
 import library.interfaces.Saveable;
+import library.interfaces.Serializable;
 
-public class Author extends Entity implements Saveable {
+public class Author extends Entity implements Saveable, Deletable, Serializable {
     private String firstName;
     private String lastName;
     private Optional<Date> birthDate;
     private Optional<String> birthPlace;
     private Optional<Date> deathDate;
     private Set<Book> books;
+
+    protected Author(String[] data) throws ParseException {
+        super(UUID.fromString(data[0]), Util.parseDate(data[1]));
+        this.firstName = data[2];
+        this.lastName = data[3];
+        this.birthDate = data.length <= 4 || data[4].isEmpty() ? Optional.empty()
+                : Optional.of(Util.parseDate(data[4]));
+        this.birthPlace = data.length <= 5 || data[5].isEmpty() ? Optional.empty() : Optional.of(data[5]);
+        this.deathDate = data.length <= 6 || data[6].isEmpty() ? Optional.empty()
+                : Optional.of(Util.parseDate(data[6]));
+        this.books = new TreeSet<>();
+    }
 
     public Author(String firstName, String lastName, Date birthDate, String birthPlace, Date deathDate) {
         super();
@@ -102,7 +116,21 @@ public class Author extends Entity implements Saveable {
     }
 
     @Override
-    public boolean save() throws RuntimeException {
+    public boolean save() {
         return DatabaseSingleton.getInstance().saveAuthor(this);
+    }
+
+    @Override
+    public boolean delete() {
+        return DatabaseSingleton.getInstance().deleteAuthor(this);
+    }
+
+    @Override
+    public String serialize() {
+        String[] fields = { getID().toString(), getCreationDate().toString(), firstName, lastName,
+                birthDate.isPresent() ? birthDate.get().toString() : "",
+                birthPlace.isPresent() ? birthPlace.get().toString() : "",
+                deathDate.isPresent() ? deathDate.get().toString() : "" };
+        return String.join(",", fields);
     }
 }

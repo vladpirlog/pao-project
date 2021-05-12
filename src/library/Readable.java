@@ -1,23 +1,29 @@
 package library;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Date;
+import java.util.Optional;
+import java.util.UUID;
 
-import library.interfaces.Copyable;
-
-public class Readable extends Entity implements Copyable, Comparable<Readable> {
+public class Readable extends Entity implements Comparable<Readable> {
     private String title;
     private Section section;
     private String ISBN;
     private String language;
-    private List<ReadableCopy> copies;
 
-    protected Readable(String title, Section section, String ISBN, String language) {
+    protected Readable(UUID id, Date creationDate, String title, Section section, String ISBN, String language) {
+        super(id, creationDate);
         this.title = title;
         this.section = section;
         this.ISBN = ISBN;
         this.language = language;
-        this.copies = new ArrayList<>();
+    }
+
+    protected Readable(String title, Section section, String ISBN, String language) {
+        super();
+        this.title = title;
+        this.section = section;
+        this.ISBN = ISBN;
+        this.language = language;
     }
 
     public String getTitle() {
@@ -52,31 +58,14 @@ public class Readable extends Entity implements Copyable, Comparable<Readable> {
         this.language = language;
     }
 
-    @Override
-    public List<ReadableCopy> getCopies() {
-        return new ArrayList<>(copies);
-    }
-
-    @Override
-    public ReadableCopy createCopy() {
-        ReadableCopy copy = new ReadableCopy(this);
-        copies.add(copy);
-        return copy;
-    }
-
-    @Override
-    public boolean deleteCopy(ReadableCopy copy) {
-        return copies.remove(copy);
-    }
-
-    @Override
-    public boolean containsCopy(ReadableCopy copy) {
-        return copies.contains(copy);
-    }
-
-    @Override
-    public int getNumberOfCopies() {
-        return copies.size();
+    public boolean isAvailableForRental() {
+        Rental[] rentals = Rental.findAllRentalsByReadableID(getID());
+        if (rentals.length == 0)
+            return true;
+        Optional<Date> lastEndDate = rentals[rentals.length - 1].getEndDate();
+        if (lastEndDate.isEmpty())
+            return false;
+        return lastEndDate.get().compareTo(new Date()) < 0;
     }
 
     @Override

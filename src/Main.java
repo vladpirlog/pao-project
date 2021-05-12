@@ -4,7 +4,6 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 
 import library.*;
-import library.database.DatabaseSingleton;
 
 import java.io.IOException;
 
@@ -12,8 +11,8 @@ public class Main {
     private static BufferedReader br;
     private static final String MENU_PROMPT = "\nPick an option and hit enter:\n" + "1) Add a client\n"
             + "2) Add a publisher\n" + "3) Add a section\n" + "4) Add an author\n" + "5) Add a book\n"
-            + "6) Add book copies\n" + "7) Add a magazine\n" + "8) Add magazine copies\n" + "9) Rent a book\n"
-            + "10) Rent a magazine\n" + "11) Exit\n";
+            + "6) Add a magazine\n" + "7) Rent a book\n" + "8) Rent a magazine\n" + "9) Return rented book\n"
+            + "10) Return rented magazine\n" + "11) Save and exit\n";
 
     private static void addClient() throws RuntimeException, IOException {
         String firstName, lastName, CNP;
@@ -94,16 +93,16 @@ public class Main {
         System.out.println("Book added.");
     }
 
-    private static void addBookCopies() throws RuntimeException, IOException {
-        String ISBN, numberOfCopies;
+    private static void returnRentedBook() throws RuntimeException, IOException {
+        String ISBN, clientCNP;
         System.out.print("Book ISBN: ");
         ISBN = br.readLine();
 
-        System.out.print("Number of copies: ");
-        numberOfCopies = br.readLine();
+        System.out.print("Client CNP: ");
+        clientCNP = br.readLine();
 
-        System.out.println(Service.addBookCopies(ISBN, Integer.parseInt(numberOfCopies)));
-        System.out.println("Book copies added.");
+        System.out.println(Service.returnRentedBook(ISBN, clientCNP));
+        System.out.println("Book returned to the library.");
     }
 
     private static void addMagazine() throws RuntimeException, IOException, ParseException {
@@ -128,16 +127,16 @@ public class Main {
         System.out.println("Magazine added.");
     }
 
-    private static void addMagazineCopies() throws RuntimeException, IOException {
-        String ISBN, numberOfCopies;
+    private static void returnRentedMagazine() throws RuntimeException, IOException {
+        String ISBN, clientCNP;
         System.out.print("Magazine ISBN: ");
         ISBN = br.readLine();
 
-        System.out.print("Number of copies: ");
-        numberOfCopies = br.readLine();
+        System.out.print("Client CNP: ");
+        clientCNP = br.readLine();
 
-        System.out.println(Service.addMagazineCopies(ISBN, Integer.parseInt(numberOfCopies)));
-        System.out.println("Magazine copies added.");
+        System.out.println(Service.returnRentedMagazine(ISBN, clientCNP));
+        System.out.println("Magazine returned to the library.");
     }
 
     public static void rentBook() throws RuntimeException, IOException, ParseException {
@@ -172,18 +171,23 @@ public class Main {
         System.out.println("Magazine rental added.");
     }
 
-    public static void main(String[] args) {
+    public static void exit() throws IOException {
+        Service.exit();
+        System.out.println("CSV files have been written. Exiting...");
+    }
+
+    public static void main(String[] args) throws ParseException {
         try {
             DatabaseSingleton.getInstance().connect();
+            Service.start();
             br = new BufferedReader(new InputStreamReader(System.in));
             String option;
-            boolean exit = false;
-            while (!exit) {
-                try {
-                    System.out.print(MENU_PROMPT);
-                    option = br.readLine();
+            boolean exitLoop = false;
+            while (!exitLoop) {
+                System.out.print(MENU_PROMPT);
+                option = br.readLine();
 
-                    switch (option) {
+                switch (option) {
                     case "1":
                         addClient();
                         break;
@@ -200,29 +204,27 @@ public class Main {
                         addBook();
                         break;
                     case "6":
-                        addBookCopies();
-                        break;
-                    case "7":
                         addMagazine();
                         break;
-                    case "8":
-                        addMagazineCopies();
-                        break;
-                    case "9":
+                    case "7":
                         rentBook();
                         break;
-                    case "10":
+                    case "8":
                         rentMagazine();
                         break;
+                    case "9":
+                        returnRentedBook();
+                        break;
+                    case "10":
+                        returnRentedMagazine();
+                        break;
                     case "11":
-                        exit = true;
+                        exit();
+                        exitLoop = true;
                         break;
                     default:
                         System.out.println("Not a valid option.");
                         break;
-                    }
-                } catch (RuntimeException e) {
-                    System.out.println(e.getMessage());
                 }
             }
             br.close();
