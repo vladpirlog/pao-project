@@ -1,19 +1,18 @@
 package library;
 
-import java.text.ParseException;
-import java.util.ArrayList;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.Date;
-import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 
-import library.interfaces.Deletable;
-import library.interfaces.Saveable;
-import library.interfaces.Serializable;
+import library.services.AuthorService;
+import library.services.BookService;
 
-public class Author extends Entity implements Saveable, Deletable, Serializable {
+public class Author extends Entity {
     private String firstName;
     private String lastName;
     private Optional<Date> birthDate;
@@ -21,26 +20,25 @@ public class Author extends Entity implements Saveable, Deletable, Serializable 
     private Optional<Date> deathDate;
     private Set<Book> books;
 
-    protected Author(String[] data) throws ParseException {
-        super(UUID.fromString(data[0]), Util.parseDate(data[1]));
-        this.firstName = data[2];
-        this.lastName = data[3];
-        this.birthDate = data.length <= 4 || data[4].isEmpty() ? Optional.empty()
-                : Optional.of(Util.parseDate(data[4]));
-        this.birthPlace = data.length <= 5 || data[5].isEmpty() ? Optional.empty() : Optional.of(data[5]);
-        this.deathDate = data.length <= 6 || data[6].isEmpty() ? Optional.empty()
-                : Optional.of(Util.parseDate(data[6]));
-        this.books = new TreeSet<>();
-    }
-
-    public Author(String firstName, String lastName, Date birthDate, String birthPlace, Date deathDate) {
-        super();
+    /**
+     * Used for initialising authors from the database.
+     */
+    private Author(UUID id, Date creationDate, String firstName, String lastName, Date birthDate, String birthPlace,
+            Date deathDate) {
+        super(id, creationDate);
         this.firstName = firstName;
         this.lastName = lastName;
         this.birthDate = Optional.ofNullable(birthDate);
         this.birthPlace = Optional.ofNullable(birthPlace);
         this.deathDate = Optional.ofNullable(deathDate);
-        this.books = new TreeSet<>();
+    }
+
+    public Author(String firstName, String lastName, Date birthDate, String birthPlace, Date deathDate) {
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.birthDate = Optional.ofNullable(birthDate);
+        this.birthPlace = Optional.ofNullable(birthPlace);
+        this.deathDate = Optional.ofNullable(deathDate);
     }
 
     public Author(String firstName, String lastName) {
@@ -83,54 +81,76 @@ public class Author extends Entity implements Saveable, Deletable, Serializable 
         return birthDate;
     }
 
+    public void setBirthDate(Date birthDate) {
+        this.birthDate = Optional.ofNullable(birthDate);
+    }
+
     public Optional<String> getBirthPlace() {
         return birthPlace;
+    }
+
+    public void setBirthPlace(String birthPlace) {
+        this.birthPlace = Optional.ofNullable(birthPlace);
     }
 
     public Optional<Date> getDeathDate() {
         return deathDate;
     }
 
-    public List<Book> getBooks() {
-        return new ArrayList<>(books);
+    public void setDeathDate(Date deathDate) {
+        this.deathDate = Optional.ofNullable(deathDate);
     }
 
-    public boolean addBook(Book book) {
-        return books.add(book);
+    /**
+     * Lazy-load or force a refresh of the books set.
+     */
+    public Set<Book> getBooks(boolean forceRefetch) {
+        if (books == null || forceRefetch)
+            books = new TreeSet<>(Arrays.asList(BookService.findBooksByAuthor(this)));
+        return books;
     }
 
-    public boolean removeBook(Book book) {
-        return books.remove(book);
-    }
-
-    public boolean containsBook(Book book) {
-        return books.contains(book);
+    public static Author[] findAll() {
+        return AuthorService.findAllAuthors();
     }
 
     public static Optional<Author> findByID(UUID id) {
-        return DatabaseSingleton.getInstance().findAuthorByID(id);
+        return AuthorService.findAuthorByID(id);
     }
 
     public static Optional<Author> findByFullName(String firstName, String lastName) {
-        return DatabaseSingleton.getInstance().findAuthorByFullName(firstName, lastName);
+        return AuthorService.findAuthorByFullName(firstName, lastName);
+    }
+
+    public static Optional<Author> findByBook(Book book) {
+        return AuthorService.findAuthorByBook(book);
     }
 
     @Override
     public boolean save() {
-        return DatabaseSingleton.getInstance().saveAuthor(this);
+        return AuthorService.saveAuthor(this);
     }
 
     @Override
     public boolean delete() {
-        return DatabaseSingleton.getInstance().deleteAuthor(this);
+        return AuthorService.deleteAuthor(this);
     }
 
     @Override
     public String serialize() {
-        String[] fields = { getID().toString(), getCreationDate().toString(), firstName, lastName,
-                birthDate.isPresent() ? birthDate.get().toString() : "",
-                birthPlace.isPresent() ? birthPlace.get().toString() : "",
-                deathDate.isPresent() ? deathDate.get().toString() : "" };
+        String[] fields = { getID().toString(), getCreationDate().toString(), getFirstName(), getLastName(),
+                getBirthDate().isPresent() ? getBirthDate().get().toString() : "",
+                getBirthPlace().isPresent() ? getBirthPlace().get().toString() : "",
+                getDeathDate().isPresent() ? getDeathDate().get().toString() : "" };
         return String.join(",", fields);
+    }
+
+    /**
+     * SQL table: id, creationDate, firstName, lastName, birthDate, birthPlace,
+     * deathDate
+     */
+    public static Author fromResultSet(ResultSet resultSet) throws SQLException {
+        return new Author(UUID.fromString(resultSet.getString(1)), resultSet.getTimestamp(2), resultSet.getString(3),
+                resultSet.getString(4), resultSet.getDate(5), resultSet.getString(6), resultSet.getDate(7));
     }
 }

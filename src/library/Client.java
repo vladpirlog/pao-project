@@ -1,34 +1,37 @@
 package library;
 
-import java.text.ParseException;
-import java.util.ArrayList;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import library.interfaces.Deletable;
-import library.interfaces.Saveable;
-import library.interfaces.Serializable;
+import library.exceptions.ClientNotFoundException;
+import library.services.ClientService;
+import library.services.RentalService;
 
-public class Client extends Entity implements Saveable, Deletable, Serializable {
+public class Client extends Entity {
     private String firstName;
     private String lastName;
     private String CNP;
     private List<Rental> rentals;
 
-    protected Client(String[] data) throws ParseException, IndexOutOfBoundsException {
-        super(UUID.fromString(data[0]), Util.parseDate(data[1]));
-        this.firstName = data[2];
-        this.lastName = data[3];
-        this.CNP = data[4];
-        this.rentals = new ArrayList<>();
+    /**
+     * Used for initialising clients from the database.
+     */
+    private Client(UUID id, Date creationDate, String firstName, String lastName, String CNP) {
+        super(id, creationDate);
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.CNP = CNP;
     }
 
     public Client(String firstName, String lastName, String CNP) {
         this.firstName = firstName;
         this.lastName = lastName;
         this.CNP = CNP;
-        this.rentals = new ArrayList<>();
     }
 
     public String getFullName() {
@@ -59,47 +62,56 @@ public class Client extends Entity implements Saveable, Deletable, Serializable 
         this.CNP = CNP;
     }
 
-    public List<Rental> getRentals() {
-        return new ArrayList<>(rentals);
+    /**
+     * Lazy-load or force a refresh of the rentals list.
+     */
+    public List<Rental> getRentals(boolean forceRefetch) {
+        if (rentals == null || forceRefetch)
+            rentals = Arrays.asList(RentalService.findRentalsByClient(this));
+        return rentals;
     }
 
-    public boolean addRental(Rental rental) {
-        return rentals.add(rental);
-    }
-
-    public boolean removeRental(Rental rental) {
-        return rentals.remove(rental);
-    }
-
-    public boolean containsRental(Rental rental) {
-        return rentals.contains(rental);
+    public static Client[] findAll() {
+        return ClientService.findAllClients();
     }
 
     public static Optional<Client> findByID(UUID id) {
-        return DatabaseSingleton.getInstance().findClientByID(id);
+        return ClientService.findClientByID(id);
     }
 
     public static Optional<Client> findByCNP(String CNP) {
-        return DatabaseSingleton.getInstance().findByClientCNP(CNP);
+        return ClientService.findClientByCNP(CNP);
     }
 
-    public static Optional<Client> findByFullName(String firstName, String lastName) {
-        return DatabaseSingleton.getInstance().findByClientFullName(firstName, lastName);
+    public static Client[] findByFullName(String firstName, String lastName) {
+        return ClientService.findClientsByFullName(firstName, lastName);
+    }
+
+    public static Client findByRental(Rental rental) throws ClientNotFoundException {
+        return ClientService.findClientByRental(rental);
     }
 
     @Override
     public boolean save() {
-        return DatabaseSingleton.getInstance().saveClient(this);
+        return ClientService.saveClient(this);
     }
 
     @Override
     public boolean delete() {
-        return DatabaseSingleton.getInstance().deleteClient(this);
+        return ClientService.deleteClient(this);
     }
 
     @Override
     public String serialize() {
-        String[] fields = { getID().toString(), getCreationDate().toString(), firstName, lastName, CNP };
+        String[] fields = { getID().toString(), getCreationDate().toString(), getFirstName(), getLastName(), getCNP() };
         return String.join(",", fields);
+    }
+
+    /**
+     * SQL table: id, creationDate, firstName, lastName, CNP
+     */
+    public static Client fromResultSet(ResultSet resultSet) throws SQLException {
+        return new Client(UUID.fromString(resultSet.getString(1)), resultSet.getTimestamp(2), resultSet.getString(3),
+                resultSet.getString(4), resultSet.getString(5));
     }
 }

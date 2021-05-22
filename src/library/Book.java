@@ -1,29 +1,27 @@
 package library;
 
-import java.text.ParseException;
-import java.util.NoSuchElementException;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Date;
 import java.util.Optional;
 import java.util.UUID;
 
-import library.interfaces.Deletable;
-import library.interfaces.Saveable;
-import library.interfaces.Serializable;
+import library.exceptions.SectionNotFoundException;
+import library.services.AuthorService;
+import library.services.BookService;
+import library.services.PublisherService;
 
-public class Book extends Readable implements Saveable, Deletable, Serializable {
+public class Book extends Readable {
     private Optional<Author> author;
     private Optional<String> releaseYear;
     private Optional<Publisher> publisher;
 
-    protected Book(String[] data) throws ParseException, IndexOutOfBoundsException, NoSuchElementException {
-        super(UUID.fromString(data[0]), Util.parseDate(data[1]), data[2],
-                Section.findByID(UUID.fromString(data[3])).orElseThrow(), data[4], data[5]);
-        this.author = Author.findByID(UUID.fromString(data[6]));
-        this.releaseYear = data[7].isEmpty() ? Optional.empty() : Optional.of(data[7]);
-        this.publisher = Publisher.findByID(UUID.fromString(data[8]));
-
-        this.author.ifPresent(a -> a.addBook(this));
-        this.publisher.ifPresent(p -> p.addBook(this));
-        this.getSection().addReadable(this);
+    /**
+     * Used for initialising books from the database.
+     */
+    private Book(UUID id, Date creationDate, String title, String ISBN, String language, String releaseYear) {
+        super(id, creationDate, title, null, ISBN, language);
+        this.releaseYear = Optional.ofNullable(releaseYear);
     }
 
     public Book(String title, Section section, String ISBN, String language, Author author, String releaseYear,
@@ -46,12 +44,17 @@ public class Book extends Readable implements Saveable, Deletable, Serializable 
         this(title, section, ISBN, language, null, null, null);
     }
 
-    public Optional<Author> getAuthor() {
+    /**
+     * Lazy-load or force a refresh of the author field.
+     */
+    public Optional<Author> getAuthor(boolean forceRefetch) {
+        if (author == null || forceRefetch)
+            author = AuthorService.findAuthorByBook(this);
         return author;
     }
 
     public void setAuthor(Author author) {
-        this.author = Optional.of(author);
+        this.author = Optional.ofNullable(author);
     }
 
     public Optional<String> getReleaseYear() {
@@ -62,43 +65,84 @@ public class Book extends Readable implements Saveable, Deletable, Serializable 
         this.releaseYear = Optional.of(releaseYear);
     }
 
-    public Optional<Publisher> getPublisher() {
+    /**
+     * Lazy-load or force a refresh of the publisher field.
+     */
+    public Optional<Publisher> getPublisher(boolean forceRefetch) {
+        if (publisher == null || forceRefetch)
+            publisher = PublisherService.findPublisherByBook(this);
         return publisher;
     }
 
     public void setPublisher(Publisher publisher) {
-        this.publisher = Optional.of(publisher);
+        this.publisher = Optional.ofNullable(publisher);
+    }
+
+    public static Book[] findAll() {
+        return BookService.findAllBooks();
     }
 
     public static Optional<Book> findByID(UUID id) {
-        return DatabaseSingleton.getInstance().findBookByID(id);
+        return BookService.findBookByID(id);
     }
 
-    public static Optional<Book> findByTitle(String title) {
-        return DatabaseSingleton.getInstance().findBookByTitle(title);
+    public static Book[] findByTitle(String title) {
+        return BookService.findBooksByTitle(title);
     }
 
     public static Optional<Book> findByISBN(String ISBN) {
-        return DatabaseSingleton.getInstance().findBookByISBN(ISBN);
+        return BookService.findBookByISBN(ISBN);
+    }
+
+    public static Book[] findBooksBySection(Section section) {
+        return BookService.findBooksBySection(section);
+    }
+
+    public static Book[] findBooksByAuthor(Author author) {
+        return BookService.findBooksByAuthor(author);
+    }
+
+    public static Book[] findBooksByPublisher(Publisher publisher) {
+        return BookService.findBooksByPublisher(publisher);
+    }
+
+    public static Optional<Book> findBookByRental(Rental rental) {
+        return BookService.findBookByRental(rental);
     }
 
     @Override
     public boolean save() {
-        return DatabaseSingleton.getInstance().saveBook(this);
+        return BookService.saveBook(this);
     }
 
     @Override
     public boolean delete() {
-        return DatabaseSingleton.getInstance().deleteBook(this);
+        return BookService.deleteBook(this);
     }
 
     @Override
     public String serialize() {
-        String[] fields = { getID().toString(), getCreationDate().toString(), getTitle(),
-                getSection().getID().toString(), getISBN(), getLanguage(),
-                author.isPresent() ? author.get().getID().toString() : "",
-                releaseYear.isPresent() ? releaseYear.get() : "",
-                publisher.isPresent() ? publisher.get().getID().toString() : "" };
+        String sectionIDString = "";
+
+        try {
+            sectionIDString = getSection(false).getID().toString();
+        } catch (SectionNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        String[] fields = { getID().toString(), getCreationDate().toString(), getTitle(), sectionIDString, getISBN(),
+                getLanguage(), getAuthor(false).isPresent() ? getAuthor(false).get().getID().toString() : "",
+                getReleaseYear().isPresent() ? getReleaseYear().get() : "",
+                getPublisher(false).isPresent() ? getPublisher(false).get().getID().toString() : "" };
         return String.join(",", fields);
+    }
+
+    /**
+     * SQL table: id, creationDate, title, sectionId, ISBN, language, authorId,
+     * releaseYear, publisherId
+     */
+    public static Book fromResultSet(ResultSet resultSet) throws SQLException {
+        return new Book(UUID.fromString(resultSet.getString(1)), resultSet.getTimestamp(2), resultSet.getString(3),
+                resultSet.getString(5), resultSet.getString(6), resultSet.getString(8));
     }
 }

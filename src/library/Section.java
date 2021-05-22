@@ -1,31 +1,34 @@
 package library;
 
-import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 
-import library.interfaces.Deletable;
-import library.interfaces.Saveable;
-import library.interfaces.Serializable;
+import library.exceptions.SectionNotFoundException;
+import library.services.BookService;
+import library.services.MagazineService;
+import library.services.SectionService;
 
-public class Section extends Entity implements Saveable, Deletable, Serializable {
+public class Section extends Entity {
     private String name;
-    private Set<Readable> readables;
+    private Set<Book> books;
+    private Set<Magazine> magazines;
 
-    protected Section(String[] data) throws ParseException, IndexOutOfBoundsException {
-        super(UUID.fromString(data[0]), Util.parseDate(data[1]));
-        this.name = data[2];
-        this.readables = new TreeSet<>();
+    /**
+     * Used for initialising rentals from the database.
+     */
+    private Section(UUID id, Date creationDate, String name) {
+        super(id, creationDate);
+        this.name = name;
     }
 
     public Section(String name) {
-        super();
         this.name = name;
-        this.readables = new TreeSet<>();
     }
 
     public String getName() {
@@ -36,43 +39,60 @@ public class Section extends Entity implements Saveable, Deletable, Serializable
         this.name = name;
     }
 
-    public List<Readable> getReadables() {
-        return new ArrayList<>(readables);
+    /**
+     * Lazy-load or force a refresh of the books set.
+     */
+    public Set<Book> getBooks(boolean forceRefetch) {
+        if (books == null || forceRefetch)
+            books = new TreeSet<>(Arrays.asList(BookService.findBooksBySection(this)));
+        return books;
     }
 
-    public boolean addReadable(Readable readable) {
-        return readables.add(readable);
+    /**
+     * Lazy-load or force a refresh of the magazines set.
+     */
+    public Set<Magazine> getMagazines(boolean forceRefetch) {
+        if (magazines == null || forceRefetch)
+            magazines = new TreeSet<>(Arrays.asList(MagazineService.findMagazinesBySection(this)));
+        return magazines;
     }
 
-    public boolean removeReadable(Readable readable) {
-        return readables.remove(readable);
-    }
-
-    public boolean containsReadable(Readable readable) {
-        return readables.contains(readable);
+    public static Section[] findAll() {
+        return SectionService.findAllSections();
     }
 
     public static Optional<Section> findByID(UUID id) {
-        return DatabaseSingleton.getInstance().findSectionByID(id);
+        return SectionService.findSectionByID(id);
     }
 
     public static Optional<Section> findByName(String name) {
-        return DatabaseSingleton.getInstance().findSectionByName(name);
+        return SectionService.findSectionByName(name);
+    }
+
+    public static Section findByReadable(Readable readable) throws SectionNotFoundException {
+        return SectionService.findSectionByReadable(readable);
     }
 
     @Override
     public boolean save() {
-        return DatabaseSingleton.getInstance().saveSection(this);
+        return SectionService.saveSection(this);
     }
 
     @Override
     public boolean delete() {
-        return DatabaseSingleton.getInstance().deleteSection(this);
+        return SectionService.deleteSection(this);
     }
 
     @Override
     public String serialize() {
-        String[] fields = { getID().toString(), getCreationDate().toString(), name };
+        String[] fields = { getID().toString(), getCreationDate().toString(), getName() };
         return String.join(",", fields);
+    }
+
+    /**
+     * SQL table: id, creationDate, name
+     */
+    public static Section fromResultSet(ResultSet resultSet) throws SQLException {
+        return new Section(UUID.fromString(resultSet.getString(1)), resultSet.getTimestamp(2), resultSet.getString(3));
     }
 }

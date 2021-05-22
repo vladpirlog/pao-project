@@ -1,31 +1,31 @@
 package library;
 
-import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.List;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
 
-import library.interfaces.Deletable;
-import library.interfaces.Saveable;
-import library.interfaces.Serializable;
+import library.services.BookService;
+import library.services.PublisherService;
 
-public class Publisher extends Entity implements Saveable, Deletable, Serializable {
+public class Publisher extends Entity {
     private String name;
     private Set<Book> books;
 
-    protected Publisher(String[] data) throws ParseException, IndexOutOfBoundsException {
-        super(UUID.fromString(data[0]), Util.parseDate(data[1]));
-        this.name = data[2];
-        this.books = new TreeSet<>();
+    /**
+     * Used for initialising publishers from the database.
+     */
+    private Publisher(UUID id, Date creationDate, String name) {
+        super(id, creationDate);
+        this.name = name;
     }
 
     public Publisher(String name) {
-        super();
         this.name = name;
-        this.books = new TreeSet<>();
     }
 
     public String getName() {
@@ -36,43 +36,52 @@ public class Publisher extends Entity implements Saveable, Deletable, Serializab
         this.name = name;
     }
 
-    public List<Book> getBooks() {
-        return new ArrayList<>(books);
+    /**
+     * Lazy-load or force a refresh of the books set.
+     */
+    public Set<Book> getBooks(boolean forceRefetch) {
+        if (books == null || forceRefetch)
+            books = new TreeSet<>(Arrays.asList(BookService.findBooksByPublisher(this)));
+        return books;
     }
 
-    public boolean addBook(Book book) {
-        return books.add(book);
-    }
-
-    public boolean removeBook(Book book) {
-        return books.remove(book);
-    }
-
-    public boolean containsBook(Book book) {
-        return books.contains(book);
+    public static Publisher[] findAll() {
+        return PublisherService.findAllPublishers();
     }
 
     public static Optional<Publisher> findByID(UUID id) {
-        return DatabaseSingleton.getInstance().findPublisherByID(id);
+        return PublisherService.findPublisherByID(id);
     }
 
     public static Optional<Publisher> findByName(String name) {
-        return DatabaseSingleton.getInstance().findPublisherByName(name);
+        return PublisherService.findPublisherByName(name);
+    }
+
+    public static Optional<Publisher> findByBook(Book book) {
+        return PublisherService.findPublisherByBook(book);
     }
 
     @Override
     public boolean save() {
-        return DatabaseSingleton.getInstance().savePublisher(this);
+        return PublisherService.savePublisher(this);
     }
 
     @Override
     public boolean delete() {
-        return DatabaseSingleton.getInstance().deletePublisher(this);
+        return PublisherService.deletePublisher(this);
     }
 
     @Override
     public String serialize() {
-        String[] fields = { getID().toString(), getCreationDate().toString(), name };
+        String[] fields = { getID().toString(), getCreationDate().toString(), getName() };
         return String.join(",", fields);
+    }
+
+    /**
+     * SQL table: id, creationDate, name
+     */
+    public static Publisher fromResultSet(ResultSet resultSet) throws SQLException {
+        return new Publisher(UUID.fromString(resultSet.getString(1)), resultSet.getTimestamp(2),
+                resultSet.getString(3));
     }
 }

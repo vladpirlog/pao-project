@@ -3,16 +3,20 @@ package library;
 import java.util.Date;
 import java.util.UUID;
 
-public class Entity {
+import library.interfaces.Deletable;
+import library.interfaces.Saveable;
+import library.interfaces.Serializable;
+
+public abstract class Entity implements Serializable, Saveable, Deletable {
     private UUID id;
     private Date creationDate;
 
-    protected Entity(UUID id, Date creationDate) {
+    public Entity(UUID id, Date creationDate) {
         this.id = id;
         this.creationDate = creationDate;
     }
 
-    protected Entity() {
+    public Entity() {
         this(UUID.randomUUID(), new Date());
     }
 

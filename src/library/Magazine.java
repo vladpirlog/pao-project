@@ -1,24 +1,23 @@
 package library;
 
-import java.text.ParseException;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Date;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
-import library.interfaces.Deletable;
-import library.interfaces.Saveable;
-import library.interfaces.Serializable;
+import library.exceptions.SectionNotFoundException;
+import library.services.MagazineService;
 
-public class Magazine extends Readable implements Saveable, Deletable, Serializable {
+public class Magazine extends Readable {
     private Date issueDate;
 
-    protected Magazine(String[] data) throws ParseException, IndexOutOfBoundsException, NoSuchElementException {
-        super(UUID.fromString(data[0]), Util.parseDate(data[1]), data[2],
-                Section.findByID(UUID.fromString(data[3])).orElseThrow(), data[4], data[5]);
-        this.issueDate = Util.parseDate(data[6]);
-
-        this.getSection().addReadable(this);
+    /**
+     * Used for initialising magazines from the database.
+     */
+    private Magazine(UUID id, Date creationDate, String title, String ISBN, String language, Date issueDate) {
+        super(id, creationDate, title, null, ISBN, language);
+        this.issueDate = issueDate;
     }
 
     public Magazine(String title, Section section, String ISBN, String language, Date issueDate) {
@@ -34,32 +33,60 @@ public class Magazine extends Readable implements Saveable, Deletable, Serializa
         this.issueDate = issueDate;
     }
 
-    public static Optional<Magazine> findByID(UUID id) {
-        return DatabaseSingleton.getInstance().findMagazineByID(id);
+    public static Magazine[] findAll() {
+        return MagazineService.findAllMagazines();
     }
 
-    public static Optional<Magazine> findByTitle(String title) {
-        return DatabaseSingleton.getInstance().findMagazineByTitle(title);
+    public static Optional<Magazine> findByID(UUID id) {
+        return MagazineService.findMagazineByID(id);
+    }
+
+    public static Magazine[] findByTitle(String title) {
+        return MagazineService.findMagazineByTitle(title);
     }
 
     public static Optional<Magazine> findByISBN(String ISBN) {
-        return DatabaseSingleton.getInstance().findMagazineByISBN(ISBN);
+        return MagazineService.findMagazineByISBN(ISBN);
+    }
+
+    public static Magazine[] findBySection(Section section) {
+        return MagazineService.findMagazinesBySection(section);
+    }
+
+    public static Optional<Magazine> findByRental(Rental rental) {
+        return MagazineService.findMagazineByRental(rental);
     }
 
     @Override
     public boolean save() {
-        return DatabaseSingleton.getInstance().saveMagazine(this);
+        return MagazineService.saveMagazine(this);
     }
 
     @Override
     public boolean delete() {
-        return DatabaseSingleton.getInstance().deleteMagazine(this);
+        return MagazineService.deleteMagazine(this);
     }
 
     @Override
     public String serialize() {
-        String[] fields = { getID().toString(), getCreationDate().toString(), getTitle(),
-                getSection().getID().toString(), getISBN(), getLanguage(), issueDate.toString() };
+        String sectionIDString = "";
+
+        try {
+            sectionIDString = getSection(false).getID().toString();
+        } catch (SectionNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        String[] fields = { getID().toString(), getCreationDate().toString(), getTitle(), sectionIDString, getISBN(),
+                getLanguage(), getIssueDate().toString() };
         return String.join(",", fields);
+    }
+
+    /**
+     * SQL table: id, creationDate, title, sectionId, ISBN, language, issueDate
+     */
+    public static Magazine fromResultSet(ResultSet resultSet) throws SQLException {
+        return new Magazine(UUID.fromString(resultSet.getString(1)), resultSet.getTimestamp(2), resultSet.getString(3),
+                resultSet.getString(5), resultSet.getString(6), resultSet.getDate(7));
     }
 }

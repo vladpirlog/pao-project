@@ -1,3 +1,9 @@
+# Environment variables files
+.env*
+
+# Don't ignore the .env example file
+!.env.example
+
 # Compiled class file
 *.class
 

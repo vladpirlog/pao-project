@@ -1,40 +1,36 @@
 package library;
 
-import java.text.ParseException;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Date;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
-import library.interfaces.Deletable;
-import library.interfaces.Saveable;
-import library.interfaces.Serializable;
+import library.exceptions.ClientNotFoundException;
+import library.services.BookService;
+import library.services.ClientService;
+import library.services.MagazineService;
+import library.services.RentalService;
 
-public class Rental extends Entity implements Saveable, Deletable, Serializable {
+public class Rental extends Entity {
     private Client client;
     private Date startDate;
     private Date predictedEndDate;
     private Optional<Date> endDate;
     private Readable rentedReadable;
 
-    protected Rental(String[] data) throws ParseException, IndexOutOfBoundsException, NoSuchElementException {
-        super(UUID.fromString(data[0]), Util.parseDate(data[1]));
-
-        this.client = Client.findByID(UUID.fromString(data[2])).orElseThrow();
-        this.startDate = Util.parseDate(data[3]);
-        this.predictedEndDate = Util.parseDate(data[4]);
-        this.endDate = data[5].isEmpty() ? Optional.empty() : Optional.of(Util.parseDate(data[5]));
-
-        Optional<Book> book = Book.findByID(UUID.fromString(data[6]));
-        Optional<Magazine> magazine = Magazine.findByID(UUID.fromString(data[6]));
-        if (book.isEmpty() && magazine.isEmpty())
-            throw new NoSuchElementException();
-        this.rentedReadable = book.isEmpty() ? magazine.get() : book.get();
-        this.client.addRental(this);
+    /**
+     * Used for initialising rentals from the database.
+     */
+    private Rental(UUID id, Date creationDate, Date startDate, Date predictedEndDate, Date endDate) {
+        super(id, creationDate);
+        this.startDate = startDate;
+        this.predictedEndDate = predictedEndDate;
+        this.endDate = Optional.ofNullable(endDate);
     }
 
     public Rental(Readable rentedReadable, Client client, Date startDate, Date predictedEndDate, Date endDate) {
-        super();
         this.client = client;
         this.startDate = startDate;
         this.predictedEndDate = predictedEndDate;
@@ -50,7 +46,14 @@ public class Rental extends Entity implements Saveable, Deletable, Serializable 
         this(rentedReadable, client, new Date(), predictedEndDate, null);
     }
 
-    public Client getClient() {
+    /**
+     * Lazy-load or force a refresh of the client field.
+     *
+     * @throws ClientNotFoundException
+     */
+    public Client getClient(boolean forceRefetch) throws ClientNotFoundException {
+        if (client == null || forceRefetch)
+            client = ClientService.findClientByRental(this);
         return client;
     }
 
@@ -70,7 +73,18 @@ public class Rental extends Entity implements Saveable, Deletable, Serializable 
         this.endDate = Optional.of(endDate);
     }
 
-    public Readable getRentedReadable() {
+    /**
+     * Lazy-load or force a refresh of the rented readable field.
+     */
+    public Readable getRentedReadable(boolean forceRefetch) throws NoSuchElementException {
+        if (rentedReadable == null || forceRefetch) {
+            Optional<Book> rentedBook = BookService.findBookByRental(this);
+            if (rentedBook.isPresent()) {
+                rentedReadable = rentedBook.get();
+            } else {
+                rentedReadable = MagazineService.findMagazineByRental(this).orElseThrow();
+            }
+        }
         return rentedReadable;
     }
 
@@ -96,33 +110,52 @@ public class Rental extends Entity implements Saveable, Deletable, Serializable 
         return Optional.of(Long.valueOf(numDays));
     }
 
+    public static Rental[] findAll() {
+        return RentalService.findAllRentals();
+    }
+
     public static Optional<Rental> findByID(UUID id) {
-        return DatabaseSingleton.getInstance().findRentalByID(id);
+        return RentalService.findRentalByID(id);
     }
 
-    public static Rental[] findAllRentalsByReadableID(UUID id) {
-        return DatabaseSingleton.getInstance().findAllRentalsByReadableID(id);
+    public static Rental[] findByReadable(Readable readable) {
+        return RentalService.findRentalsByReadable(readable);
     }
 
-    public static Rental[] findAllRentalsByClientID(UUID id) {
-        return DatabaseSingleton.getInstance().findAllRentalsByClientID(id);
+    public static Rental[] findByClient(Client client) {
+        return RentalService.findRentalsByClient(client);
     }
 
     @Override
     public boolean save() {
-        return DatabaseSingleton.getInstance().saveRental(this);
+        return RentalService.saveRental(this);
     }
 
     @Override
     public boolean delete() {
-        return DatabaseSingleton.getInstance().deleteRental(this);
+        return RentalService.deleteRental(this);
     }
 
     @Override
     public String serialize() {
-        String[] fields = { getID().toString(), getCreationDate().toString(), client.getID().toString(),
-                startDate.toString(), predictedEndDate.toString(), endDate.get().toString(),
-                rentedReadable.getID().toString() };
+        String clientIDString = "";
+        try {
+            clientIDString = getClient(false).getID().toString();
+        } catch (ClientNotFoundException e) {
+            e.printStackTrace();
+        }
+        String[] fields = { getID().toString(), getCreationDate().toString(), clientIDString, getStartDate().toString(),
+                getPredictedEndDate().toString(), getEndDate().get().toString(),
+                getRentedReadable(false).getID().toString() };
         return String.join(",", fields);
+    }
+
+    /**
+     * SQL table: id, creationDate, clientId, startDate, predictedEndDate, endDate,
+     * readableId
+     */
+    public static Rental fromResultSet(ResultSet resultSet) throws SQLException {
+        return new Rental(UUID.fromString(resultSet.getString(1)), resultSet.getTimestamp(2), resultSet.getTimestamp(4),
+                resultSet.getTimestamp(5), resultSet.getTimestamp(6));
     }
 }

@@ -1,8 +1,8 @@
 package library.interfaces;
 
-import java.io.IOException;
+import java.sql.SQLException;
 
 @FunctionalInterface
 public interface Closeable {
-    public void close() throws IOException;
+    public void close() throws SQLException;
 }

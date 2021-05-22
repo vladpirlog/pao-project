@@ -1,9 +1,8 @@
 package library.interfaces;
 
-import java.io.IOException;
-import java.text.ParseException;
+import java.sql.SQLException;
 
 @FunctionalInterface
 public interface Connectable {
-    public void connect() throws IOException, ParseException, RuntimeException;
+    public void connect() throws SQLException, ClassNotFoundException;
 }

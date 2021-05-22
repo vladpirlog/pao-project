@@ -1,16 +1,22 @@
 package library;
 
+import java.time.DateTimeException;
+import java.util.Arrays;
 import java.util.Date;
-import java.util.Optional;
 import java.util.UUID;
 
-public class Readable extends Entity implements Comparable<Readable> {
+import library.exceptions.NotAvailableForRentalException;
+import library.exceptions.SectionNotFoundException;
+import library.services.RentalService;
+import library.services.SectionService;
+
+public abstract class Readable extends Entity implements Comparable<Readable> {
     private String title;
     private Section section;
     private String ISBN;
     private String language;
 
-    protected Readable(UUID id, Date creationDate, String title, Section section, String ISBN, String language) {
+    public Readable(UUID id, Date creationDate, String title, Section section, String ISBN, String language) {
         super(id, creationDate);
         this.title = title;
         this.section = section;
@@ -18,8 +24,7 @@ public class Readable extends Entity implements Comparable<Readable> {
         this.language = language;
     }
 
-    protected Readable(String title, Section section, String ISBN, String language) {
-        super();
+    public Readable(String title, Section section, String ISBN, String language) {
         this.title = title;
         this.section = section;
         this.ISBN = ISBN;
@@ -34,7 +39,14 @@ public class Readable extends Entity implements Comparable<Readable> {
         this.title = title;
     }
 
-    public Section getSection() {
+    /**
+     * Lazy-load or force a refresh of the section field.
+     *
+     * @throws SectionNotFoundException
+     */
+    public Section getSection(boolean forceRefetch) throws SectionNotFoundException {
+        if (section == null || forceRefetch)
+            section = SectionService.findSectionByReadable(this);
         return section;
     }
 
@@ -58,14 +70,20 @@ public class Readable extends Entity implements Comparable<Readable> {
         this.language = language;
     }
 
-    public boolean isAvailableForRental() {
-        Rental[] rentals = Rental.findAllRentalsByReadableID(getID());
-        if (rentals.length == 0)
-            return true;
-        Optional<Date> lastEndDate = rentals[rentals.length - 1].getEndDate();
-        if (lastEndDate.isEmpty())
-            return false;
-        return lastEndDate.get().compareTo(new Date()) < 0;
+    public boolean isAvailableForRent() {
+        Date currentDate = new Date();
+        return Arrays.stream(RentalService.findRentalsByReadable(this))
+                .allMatch(r -> r.getEndDate().orElse(currentDate).compareTo(currentDate) < 0);
+    }
+
+    public Rental rent(Client client, Date predictedEndDate) throws NotAvailableForRentalException, DateTimeException {
+        if (!isAvailableForRent())
+            throw new NotAvailableForRentalException();
+        if (predictedEndDate.compareTo(new Date()) < 0)
+            throw new DateTimeException("The predicted end date is invalid.");
+        Rental rental = new Rental(this, client, predictedEndDate);
+        rental.save();
+        return rental;
     }
 
     @Override
