@@ -17,15 +17,14 @@ public class Main {
             + "10) Return rented magazine\n" + "11) Generate CSV files from database content\n" + "12) Exit\n";
 
     private static void addClient() throws IOException {
-        String firstName, lastName, CNP;
         System.out.print("First name: ");
-        firstName = br.readLine();
+        String firstName = br.readLine();
 
         System.out.print("Last name: ");
-        lastName = br.readLine();
+        String lastName = br.readLine();
 
         System.out.print("CNP: ");
-        CNP = br.readLine();
+        String CNP = br.readLine();
 
         System.out.println(UserInteractionService.addClient(firstName, lastName, CNP));
         System.out.println("Client added.");
@@ -50,15 +49,14 @@ public class Main {
     }
 
     private static void addAuthor() throws IOException, ParseException {
-        String firstName, lastName, birthDate;
         System.out.print("First name: ");
-        firstName = br.readLine();
+        String firstName = br.readLine();
 
         System.out.print("Last name: ");
-        lastName = br.readLine();
+        String lastName = br.readLine();
 
         System.out.print("Birth date (dd/mm/yyyy): ");
-        birthDate = br.readLine();
+        String birthDate = br.readLine();
 
         System.out.println(UserInteractionService.addAuthor(firstName, lastName,
                 new SimpleDateFormat("dd/MM/yyyy").parse(birthDate)));
@@ -66,30 +64,29 @@ public class Main {
     }
 
     private static void addBook() throws IOException {
-        String title, sectionName, ISBN, language, authorFirstName, authorLastName, releaseYear, publisherName;
         System.out.print("Title: ");
-        title = br.readLine();
+        String title = br.readLine();
 
         System.out.print("Section name: ");
-        sectionName = br.readLine();
+        String sectionName = br.readLine();
 
         System.out.print("ISBN: ");
-        ISBN = br.readLine();
+        String ISBN = br.readLine();
 
         System.out.print("Language: ");
-        language = br.readLine();
+        String language = br.readLine();
 
         System.out.print("Author first name: ");
-        authorFirstName = br.readLine();
+        String authorFirstName = br.readLine();
 
         System.out.print("Author last name: ");
-        authorLastName = br.readLine();
+        String authorLastName = br.readLine();
 
         System.out.print("Release year: ");
-        releaseYear = br.readLine();
+        String releaseYear = br.readLine();
 
         System.out.print("Publisher name: ");
-        publisherName = br.readLine();
+        String publisherName = br.readLine();
 
         System.out.println(UserInteractionService.addBook(title, sectionName, ISBN, language, authorFirstName,
                 authorLastName, releaseYear, publisherName));
@@ -97,33 +94,31 @@ public class Main {
     }
 
     private static void returnRentedBook() throws IOException {
-        String ISBN, clientCNP;
         System.out.print("Book ISBN: ");
-        ISBN = br.readLine();
+        String ISBN = br.readLine();
 
         System.out.print("Client CNP: ");
-        clientCNP = br.readLine();
+        String clientCNP = br.readLine();
 
         System.out.println(UserInteractionService.returnRentedBook(ISBN, clientCNP));
         System.out.println("Book returned to the library.");
     }
 
     private static void addMagazine() throws IOException, ParseException {
-        String title, sectionName, ISBN, language, issueDate;
         System.out.print("Title: ");
-        title = br.readLine();
+        String title = br.readLine();
 
         System.out.print("Section name: ");
-        sectionName = br.readLine();
+        String sectionName = br.readLine();
 
         System.out.print("ISBN: ");
-        ISBN = br.readLine();
+        String ISBN = br.readLine();
 
         System.out.print("Language: ");
-        language = br.readLine();
+        String language = br.readLine();
 
         System.out.print("Issue date (dd/mm/yyyy): ");
-        issueDate = br.readLine();
+        String issueDate = br.readLine();
 
         System.out.println(UserInteractionService.addMagazine(title, sectionName, ISBN, language,
                 new SimpleDateFormat("dd/MM/yyyy").parse(issueDate)));
@@ -131,27 +126,25 @@ public class Main {
     }
 
     private static void returnRentedMagazine() throws IOException {
-        String ISBN, clientCNP;
         System.out.print("Magazine ISBN: ");
-        ISBN = br.readLine();
+        String ISBN = br.readLine();
 
         System.out.print("Client CNP: ");
-        clientCNP = br.readLine();
+        String clientCNP = br.readLine();
 
         System.out.println(UserInteractionService.returnRentedMagazine(ISBN, clientCNP));
         System.out.println("Magazine returned to the library.");
     }
 
     public static void rentBook() throws IOException, ParseException, NotAvailableForRentalException {
-        String ISBN, clientCNP, predictedEndDate;
         System.out.print("Book ISBN: ");
-        ISBN = br.readLine();
+        String ISBN = br.readLine();
 
         System.out.print("Client CNP: ");
-        clientCNP = br.readLine();
+        String clientCNP = br.readLine();
 
         System.out.print("Predicted end date (dd/mm/yyyy): ");
-        predictedEndDate = br.readLine();
+        String predictedEndDate = br.readLine();
 
         System.out.println(UserInteractionService.rentBook(ISBN, clientCNP,
                 new SimpleDateFormat("dd/MM/yyyy").parse(predictedEndDate)));
@@ -159,15 +152,14 @@ public class Main {
     }
 
     public static void rentMagazine() throws IOException, ParseException, NotAvailableForRentalException {
-        String ISBN, clientCNP, predictedEndDate;
         System.out.print("Magazine ISBN: ");
-        ISBN = br.readLine();
+        String ISBN = br.readLine();
 
         System.out.print("Client CNP: ");
-        clientCNP = br.readLine();
+        String clientCNP = br.readLine();
 
         System.out.print("Predicted end date (dd/mm/yyyy): ");
-        predictedEndDate = br.readLine();
+        String predictedEndDate = br.readLine();
 
         System.out.println(UserInteractionService.rentMagazine(ISBN, clientCNP,
                 new SimpleDateFormat("dd/MM/yyyy").parse(predictedEndDate)));

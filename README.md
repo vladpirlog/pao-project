@@ -36,4 +36,4 @@ Tema aleasa este **Tema 2**: implementarea unei biblioteci (sectiuni, carti, aut
 
 ## Adaugarea variabilelor de mediu
 
-Variabilele de mediu necesare rularii aplicatiei trebuie incluse intr-un fisier numit `.env` sau date ca argumente in momentul lansarii. In fisierul [.env.example](.env.example) se afla un exemplu de fisier de configurare.
+Variabilele de mediu necesare rularii aplicatiei trebuie incluse intr-un fisier numit `.env` sau date ca argumente in momentul lansarii. In fisierul [.env.example](.env.example) se afla un exemplu de configurare.

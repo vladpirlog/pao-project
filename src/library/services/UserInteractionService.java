@@ -201,6 +201,9 @@ public final class UserInteractionService {
         return client.getRentals(false);
     }
 
+    /**
+     * Generate CSV files using the information in the database
+     */
     public static void generateCSVFiles(String directoryPath) throws IOException {
         loggingService.log("generateCSVFiles");
         BufferedWriter bw;
