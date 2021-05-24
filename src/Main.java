@@ -1,6 +1,5 @@
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 
@@ -173,10 +172,6 @@ public class Main {
         System.out.println("CSV files written.");
     }
 
-    public static void exit() throws IOException, SQLException {
-        UserInteractionService.exit();
-    }
-
     public static void main(String[] args) throws ParseException {
         try {
             UserInteractionService.start();
@@ -223,7 +218,6 @@ public class Main {
                             generateCSVFiles();
                             break;
                         case "12":
-                            exit();
                             exitLoop = true;
                             break;
                         default:
@@ -235,7 +229,7 @@ public class Main {
                 }
             }
             br.close();
-            exit();
+            UserInteractionService.exit();
         } catch (Exception e) {
             e.printStackTrace();
         }
